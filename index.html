@@ -662,6 +662,17 @@ header{display:flex;align-items:center;gap:10px;padding:0 2px}
   const BITS = [];
   for (let v = 1; v <= 9; v++) BITS[v] = 1 << (v - 1);
 
+  /* 연관 구역: 각 칸과 같은 행·같은 열·같은 3×3 박스에 있는 다른 칸들 */
+  const PEERS = [];
+  for (let i = 0; i < 81; i++) {
+    const r = idx9(i), c = i % 9, b = boxOf(i);
+    const list = [];
+    for (let j = 0; j < 81; j++) {
+      if (j !== i && (idx9(j) === r || j % 9 === c || boxOf(j) === b)) list.push(j);
+    }
+    PEERS.push(list);
+  }
+
   function buildGrid() {
     const frag = document.createDocumentFragment();
     for (let i = 0; i < 81; i++) {
@@ -874,9 +885,26 @@ header{display:flex;align-items:center;gap:10px;padding:0 2px}
     commitValue(i, v);
   }
 
+  /* 확정한 숫자 N의 메모를 연관 구역에서 자동으로 지우고, 되돌릴 스냅샷을 돌려준다 */
+  function stripPeerNotes(i, v) {
+    const bit = BITS[v];
+    const peers = PEERS[i];
+    const snapped = [];
+    for (let k = 0; k < peers.length; k++) {
+      const j = peers[k];
+      const before = S.notes[j];
+      if (before & bit) {
+        snapped.push([j, before]);
+        S.notes[j] = before & ~bit;
+      }
+    }
+    return snapped;
+  }
+
   function commitValue(i, v) {
     if (i < 0 || S.puzzle[i] || S.solved) return;
-    pushHistory({ i, v: S.values[i], n: S.notes[i] });
+    const peerNotes = stripPeerNotes(i, v);
+    pushHistory({ i, v: S.values[i], n: S.notes[i], ns: peerNotes });
     S.values[i] = v;
     S.notes[i] = 0;
     if (v !== S.solution[i]) {
@@ -977,6 +1005,7 @@ header{display:flex;align-items:center;gap:10px;padding:0 2px}
     if (!h) { toast('되돌릴 동작이 없어요'); return; }
     S.values[h.i] = h.v;
     S.notes[h.i] = h.n;
+    if (h.ns) for (let k = 0; k < h.ns.length; k++) S.notes[h.ns[k][0]] = h.ns[k][1];
     S.sel = h.i;
     paint(); save();
   }
@@ -991,15 +1020,17 @@ header{display:flex;align-items:center;gap:10px;padding:0 2px}
       if (!empties.length) return;
       target = empties[rnd(empties.length)];
     }
-    pushHistory({ i: target, v: S.values[target], n: S.notes[target] });
-    S.values[target] = S.solution[target];
+    const hv = S.solution[target];
+    const peerNotes = stripPeerNotes(target, hv);
+    pushHistory({ i: target, v: S.values[target], n: S.notes[target], ns: peerNotes });
+    S.values[target] = hv;
     S.notes[target] = 0;
     S.hints.add(target);
     S.hintsUsed++;
     S.sel = target;
     startTimer();
     paint(); save();
-    toast('힌트: ' + S.solution[target]);
+    toast('힌트: ' + hv);
     checkWin();
   }
 
