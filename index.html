@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070a14">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="3D로 즐기는 모바일 스도쿠">
+<title>스도쿠 3D</title>
+<script>
+/* 진단용: 페이지에서 발생하는 오류를 수집 (화면에는 표시되지 않음) */
+window.__diag = { errors: [] };
+addEventListener('error', function (e) {
+  window.__diag.errors.push(String(e.message || e.type) + ' @' + (e.filename || '') + ':' + (e.lineno || 0));
+});
+addEventListener('unhandledrejection', function (e) {
+  window.__diag.errors.push('rejection: ' + e.reason);
+});
+</script>
+<style>
+:root{
+  --bg:#070a14;
+  --line:rgba(140,180,255,.13);
+  --txt:#e9eefb;
+  --dim:#8595b8;
+  --cyan:#3fe1ff;
+  --violet:#8b6bff;
+  --gold:#ffcf6b;
+  --red:#ff5d73;
+  --bs:min(366px, calc(100vw - 24px));
+  --th:26px; 
+  --persp:1080px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  -webkit-user-select:none;user-select:none;overscroll-behavior:none;
+  touch-action:manipulation;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(63,120,255,.20), transparent 60%),
+    radial-gradient(90% 55% at 15% 108%, rgba(139,107,255,.16), transparent 62%),
+    radial-gradient(70% 50% at 92% 85%, rgba(63,225,255,.08), transparent 60%),
+    linear-gradient(180deg,#070a14 0%,#080c18 45%,#05080f 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;
+  background-image:linear-gradient(rgba(140,180,255,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(140,180,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(70% 50% at 50% 30%,#000 0%,transparent 78%);
+  -webkit-mask-image:radial-gradient(70% 50% at 50% 30%,#000 0%,transparent 78%);
+}
+
+#app{
+  position:fixed;left:0;right:0;top:0;bottom:0;margin:0 auto;max-width:440px;
+  display:flex;flex-direction:column;gap:8px;z-index:1;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 10px);
+}
+
+/* ── header ─────────────────────────────── */
+header{display:flex;align-items:center;gap:10px;padding:0 2px}
+.logo{
+  width:38px;height:38px;border-radius:11px;position:relative;flex:0 0 auto;
+  background:linear-gradient(150deg,#2a4a86,#0e1730);
+  box-shadow:inset 0 1px 0 rgba(150,200,255,.35),0 6px 14px rgba(0,0,0,.45);
+  display:grid;place-items:center;
+}
+.logo i{
+  display:block;width:16px;height:16px;border-radius:3px;
+  background:linear-gradient(150deg,rgba(63,225,255,.95),rgba(139,107,255,.85));
+  box-shadow:0 0 12px rgba(63,225,255,.6);
+  transform:rotate(-12deg);
+}
+.titles{flex:1;min-width:0}
+.titles h1{
+  margin:0;font-size:19px;letter-spacing:-.3px;font-weight:800;
+  background:linear-gradient(92deg,#ffffff,#9fd7ff 55%,#b9a6ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.titles p{margin:1px 0 0;font-size:12px;color:var(--dim);letter-spacing:.1px}
+.iconbtn{
+  width:42px;height:42px;border-radius:13px;border:1px solid var(--line);flex:0 0 auto;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  color:#cfe0ff;font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer;
+  transition:transform .12s,background .2s,border-color .2s;
+}
+.iconbtn:active{transform:scale(.93);background:rgba(63,225,255,.16);border-color:rgba(63,225,255,.5)}
+
+/* ── difficulty chips ───────────────────── */
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:4px;border-radius:13px;
+  background:rgba(255,255,255,.045);border:1px solid var(--line)}
+.chip{
+  height:34px;border-radius:10px;border:1px solid transparent;background:transparent;
+  color:var(--dim);font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:color .18s,background .18s,box-shadow .18s;
+}
+.chip.active{
+  color:#04121b;
+  background:linear-gradient(180deg,#7ceaff,#25c2e6);
+  box-shadow:0 4px 12px rgba(63,225,255,.28),inset 0 1px 0 rgba(255,255,255,.5);
+}
+
+/* ── stats ──────────────────────────────── */
+.stats{display:flex;align-items:center;gap:6px;padding:0 2px}
+.stat{
+  display:flex;align-items:baseline;gap:5px;padding:6px 10px;border-radius:10px;
+  background:rgba(255,255,255,.045);border:1px solid var(--line);font-size:13px;color:var(--txt);
+  font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.2px;
+}
+.stat .k{font-size:10.5px;color:var(--dim);font-weight:600;letter-spacing:0}
+.autocheck{
+  margin-left:auto;display:flex;align-items:center;gap:6px;height:31px;padding:0 11px;
+  border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.045);
+  color:var(--dim);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+  transition:color .18s,background .18s,border-color .18s;
+}
+.autocheck .dot{width:7px;height:7px;border-radius:50%;background:#48557a;transition:all .2s}
+.autocheck.on{color:#bdf3ff;border-color:rgba(63,225,255,.4);background:rgba(63,225,255,.12)}
+.autocheck.on .dot{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+
+/* ── 3D stage ───────────────────────────── */
+.stage{
+  position:relative;flex:1 1 auto;min-height:170px;display:flex;flex-direction:column;
+  margin:0 -6px;overflow:hidden;touch-action:none;
+}
+.stagebar{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;height:34px;padding:0 4px;
+}
+.stageview{
+  position:relative;flex:1 1 auto;min-height:0;display:grid;place-items:center;
+  perspective:var(--persp);perspective-origin:50% 48%;touch-action:none;
+}
+.stageview::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(52% 42% at 50% 54%,rgba(60,140,255,.17),transparent 72%);
+}
+.world{
+  position:relative;transform-style:preserve-3d;will-change:transform;
+  transition:transform .5s cubic-bezier(.22,.9,.28,1);
+}
+.world.dragging{transition:none}
+.board{position:relative;width:var(--bs);height:var(--bs);transform-style:preserve-3d}
+.floor{
+  position:absolute;left:50%;top:50%;width:1240px;height:1240px;margin:-620px 0 0 -620px;
+  transform:translateZ(-105px);pointer-events:none;opacity:.4;
+  background-image:
+    linear-gradient(rgba(104,164,255,.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(104,164,255,.5) 1px, transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(closest-side at 50% 50%, rgba(0,0,0,.95) 6%, rgba(0,0,0,.6) 34%, rgba(0,0,0,.2) 56%, transparent 74%);
+  mask-image:radial-gradient(closest-side at 50% 50%, rgba(0,0,0,.95) 6%, rgba(0,0,0,.6) 34%, rgba(0,0,0,.2) 56%, transparent 74%);
+}
+.shadow{
+  position:absolute;inset:-4%;border-radius:50%;pointer-events:none;
+  transform:translateZ(calc(-1 * var(--th) - 6px));
+  background:radial-gradient(closest-side,rgba(0,0,0,.85),rgba(0,0,0,.35) 62%,transparent 78%);
+  filter:blur(14px);opacity:.9;
+}
+
+.slab{
+  position:absolute;inset:0;transform-style:preserve-3d;border-radius:14px;
+  background:linear-gradient(158deg,#1d2d51 0%,#111b31 46%,#0a1020 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(170,205,255,.25),
+    inset 0 -1px 0 rgba(0,0,0,.6),
+    0 0 54px rgba(56,128,255,.20);
+}
+.slab::after{
+  content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;
+  background:radial-gradient(120% 80% at 30% 0%,rgba(120,180,255,.14),transparent 58%);
+}
+.wall{position:absolute;background:linear-gradient(180deg,#16233d,#060a13)}
+.wall.n{left:0;top:0;width:100%;height:var(--th);transform-origin:top center;transform:rotateX(-90deg);
+  background:linear-gradient(180deg,#1b2b49,#070c16);filter:brightness(.55)}
+.wall.s{left:0;top:100%;width:100%;height:var(--th);transform-origin:top center;transform:rotateX(-90deg);
+  background:linear-gradient(180deg,#2b4570 0%,#16233d 22%,#080e1b 100%);
+  box-shadow:inset 0 2px 0 rgba(140,190,255,.35)}
+.wall.w{left:0;top:0;width:var(--th);height:100%;transform-origin:left center;transform:rotateY(90deg);
+  background:linear-gradient(90deg,#22375c,#0a1120);filter:brightness(.72)}
+.wall.e{left:100%;top:0;width:var(--th);height:100%;transform-origin:left center;transform:rotateY(90deg);
+  background:linear-gradient(90deg,#22375c,#0a1120);filter:brightness(.62)}
+
+.grid{
+  position:absolute;inset:9px;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);
+  gap:3px;transform-style:preserve-3d;
+}
+.boxlines{position:absolute;inset:9px;pointer-events:none;transform:translateZ(.6px)}
+.boxlines i{position:absolute;background:linear-gradient(90deg,rgba(110,190,255,.05),rgba(130,200,255,.34),rgba(110,190,255,.05));border-radius:1px}
+.boxlines i.v{top:0;bottom:0;width:2px}
+.boxlines i.h{left:0;right:0;height:2px;background:linear-gradient(180deg,rgba(110,190,255,.05),rgba(130,200,255,.34),rgba(110,190,255,.05))}
+
+.cell{
+  position:relative;border-radius:6px;display:grid;place-items:center;
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.02));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 -1px 0 rgba(0,0,0,.45);
+  transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,box-shadow .18s,color .18s;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+.cell .val{
+  font-size:calc(var(--bs) * .062);font-weight:800;line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:#4fe6ff;
+  text-shadow:0 0 12px rgba(63,225,255,.35);
+  transform:translateZ(.4px);
+}
+.cell.given .val{color:#dae7ff;font-weight:700;text-shadow:0 0 10px rgba(170,210,255,.2)}
+.cell.hintc .val{color:var(--gold);text-shadow:0 0 12px rgba(255,207,107,.45)}
+.cell .notes{
+  position:absolute;inset:6%;display:none;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  place-items:center;font-size:calc(var(--bs) * .026);line-height:1;font-weight:700;color:#a8c0e4;
+  transform:translateZ(.4px);font-variant-numeric:tabular-nums;
+}
+.cell.has-notes .notes{display:grid}
+.cell .notes i{font-style:normal;visibility:hidden}
+.cell .notes i.on{visibility:visible}
+
+.cell.hl{background:linear-gradient(180deg,rgba(96,140,235,.16),rgba(96,140,235,.09))}
+.cell.same{background:linear-gradient(180deg,rgba(139,107,255,.30),rgba(139,107,255,.16));
+  box-shadow:inset 0 0 0 1px rgba(160,130,255,.55)}
+.cell.sel{
+  transform:translateZ(17px);
+  background:linear-gradient(180deg,rgba(63,225,255,.34),rgba(63,180,255,.18));
+  box-shadow:0 0 0 2px rgba(63,225,255,.95),0 0 28px rgba(63,225,255,.55),0 9px 0 -3px rgba(6,80,110,.55);
+  z-index:3;
+}
+.cell.sel .val{color:#eafcff;text-shadow:0 0 16px rgba(63,225,255,.9)}
+.cell.wrong{
+  background:linear-gradient(180deg,rgba(255,93,115,.26),rgba(255,93,115,.12));
+  box-shadow:inset 0 0 0 1px rgba(255,93,115,.55);
+}
+.cell.wrong .val{color:#ff8d9d;text-shadow:0 0 14px rgba(255,93,115,.6)}
+.cell.shake{animation:shake .3s}
+@keyframes shake{0%,100%{margin-left:0}25%{margin-left:-3px}75%{margin-left:3px}}
+.cell.winwave{transform:translateZ(26px);box-shadow:0 0 0 1px rgba(63,225,255,.7),0 0 22px rgba(63,225,255,.5)}
+
+/* view controls */
+.viewbar{display:flex;gap:5px;margin-left:auto}
+.draghint{
+  font-size:11px;color:#6b7ba1;letter-spacing:.2px;pointer-events:none;
+  transition:opacity .5s;white-space:nowrap;overflow:hidden;text-overflow:clip;
+}
+.draghint.gone{opacity:0}
+.vbtn{
+  height:30px;min-width:34px;padding:0 10px;border-radius:9px;cursor:pointer;font-family:inherit;
+  border:1px solid rgba(140,180,255,.22);color:#cfe0ff;font-size:12px;font-weight:700;
+  background:rgba(12,20,38,.72);backdrop-filter:blur(8px);
+  display:grid;place-items:center;transition:transform .12s,background .18s,border-color .18s;
+}
+.vbtn:active{transform:scale(.92);background:rgba(63,225,255,.2);border-color:rgba(63,225,255,.55)}
+.vbtn.active{color:#04121b;background:linear-gradient(180deg,#7ceaff,#2ac6e8);border-color:transparent}
+
+/* ── tools ──────────────────────────────── */
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tool{
+  height:52px;border-radius:12px;border:1px solid var(--line);cursor:pointer;font-family:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.02));
+  color:#c7d6f2;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;line-height:1;transition:transform .12s,background .18s,border-color .18s,color .18s;
+}
+.tool em{font-style:normal;font-size:17px;line-height:1}
+.tool:active{transform:scale(.95)}
+.tool.on{
+  color:#04121b;border-color:transparent;
+  background:linear-gradient(180deg,#ffd98a,#f2b53f);
+  box-shadow:0 6px 16px rgba(255,190,80,.28);
+}
+.tool:disabled{opacity:.35}
+
+/* ── numpad ─────────────────────────────── */
+.numpad{
+  display:grid;grid-template-columns:repeat(9,1fr);gap:5px;padding:7px;border-radius:15px;
+  background:rgba(255,255,255,.045);border:1px solid var(--line);
+}
+.key{
+  position:relative;height:58px;border-radius:11px;cursor:pointer;font-family:inherit;
+  border:1px solid rgba(130,175,255,.2);
+  background:linear-gradient(180deg,rgba(74,116,205,.30),rgba(34,52,96,.34));
+  color:#e6f1ff;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;
+  display:grid;place-items:center;transition:transform .1s,background .18s,opacity .2s,border-color .18s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+}
+.key .rest{position:absolute;right:4px;bottom:3px;font-size:8.5px;font-weight:700;color:rgba(180,210,255,.55)}
+.key:active{transform:scale(.93);background:linear-gradient(180deg,rgba(63,225,255,.4),rgba(30,120,160,.5))}
+.key.done{opacity:.32}
+.key.hi{border-color:rgba(63,225,255,.8);box-shadow:0 0 14px rgba(63,225,255,.4),inset 0 1px 0 rgba(255,255,255,.15)}
+
+/* ── toast ──────────────────────────────── */
+.toast{
+  position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 196px);
+  transform:translate(-50%,-8px);z-index:70;padding:9px 16px;border-radius:999px;
+  background:rgba(16,26,46,.92);border:1px solid rgba(140,180,255,.3);color:#dfeaff;
+  font-size:12.5px;font-weight:700;opacity:0;pointer-events:none;
+  transition:opacity .22s,transform .22s;backdrop-filter:blur(10px);white-space:nowrap;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ── win ────────────────────────────────── */
+#fx{position:fixed;inset:0;z-index:70;pointer-events:none;display:none}
+.win{
+  position:fixed;inset:0;z-index:65;display:grid;place-items:center;padding:22px;
+  background:rgba(4,8,16,.58);backdrop-filter:blur(3px);opacity:0;pointer-events:none;
+  transition:opacity .3s;
+}
+.win.show{opacity:1;pointer-events:auto}
+.win-card{
+  width:100%;max-width:320px;border-radius:22px;padding:24px 20px 18px;text-align:center;
+  background:linear-gradient(170deg,#16233f,#0b1222 70%);
+  border:1px solid rgba(140,190,255,.24);
+  box-shadow:0 30px 70px rgba(0,0,0,.65),inset 0 1px 0 rgba(190,220,255,.2);
+  transform:translateY(16px) scale(.94);transition:transform .38s cubic-bezier(.2,1.1,.3,1);
+}
+.win.show .win-card{transform:none}
+.win-badge{font-size:34px;line-height:1;margin-bottom:6px}
+.win-card h2{
+  margin:0;font-size:24px;letter-spacing:-.5px;
+  background:linear-gradient(92deg,#fff,#9fe3ff 60%,#c2b0ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.win-card .sub{margin:6px 0 16px;font-size:12.5px;color:var(--dim)}
+.win-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.win-grid div{padding:9px 4px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.win-grid span{display:block;font-size:10px;color:var(--dim);margin-bottom:3px}
+.win-grid b{font-size:14px;font-variant-numeric:tabular-nums}
+.winbest{font-size:11.5px;color:var(--gold);margin:-6px 0 14px;height:14px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.btn{
+  height:46px;border-radius:13px;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:800;
+  background:linear-gradient(180deg,#7ceaff,#22bee2);color:#04121b;
+  box-shadow:0 8px 20px rgba(63,225,255,.28);
+}
+.btn.ghost{background:rgba(255,255,255,.06);color:#c7d6f2;border:1px solid var(--line);box-shadow:none}
+.btn:active{transform:scale(.97)}
+
+@media (max-height:700px){
+  .key{height:46px;font-size:19px}
+  .tool{height:40px}
+  .stat{padding:4px 8px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s !important;transition-duration:.001s !important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo" aria-hidden="true"><i></i></div>
+    <div class="titles">
+      <h1>스도쿠 3D</h1>
+      <p id="subtitle">쉬움 · 두 손가락으로 확대</p>
+    </div>
+    <button class="iconbtn" id="btnNew" aria-label="새 게임">⟳</button>
+  </header>
+
+  <div class="chips" id="chips" role="tablist" aria-label="난이도">
+    <button class="chip active" data-d="easy" role="tab">쉬움</button>
+    <button class="chip" data-d="medium" role="tab">보통</button>
+    <button class="chip" data-d="hard" role="tab">어려움</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="k">시간</span><span id="timer">00:00</span></div>
+    <div class="stat"><span class="k">실수</span><span id="mistakes">0</span></div>
+    <div class="stat"><span class="k">힌트</span><span id="hintCount">0</span></div>
+    <button class="autocheck on" id="btnCheck" aria-pressed="true">
+      <span class="dot"></span>오답 체크
+    </button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="stagebar">
+      <div class="draghint" id="draghint">드래그로 3D 회전 · 두 손가락 확대</div>
+      <div class="viewbar">
+        <button class="vbtn" id="btnFront">정면</button>
+        <button class="vbtn active" id="btnIso">3D</button>
+        <button class="vbtn" id="btnZoomOut" aria-label="축소">−</button>
+        <button class="vbtn" id="btnZoomIn" aria-label="확대">＋</button>
+      </div>
+    </div>
+    <div class="stageview" id="stageview">
+      <div class="world" id="world">
+      <div class="floor"></div>
+      <div class="board" id="board">
+        <div class="shadow"></div>
+        <div class="slab"></div>
+        <div class="wall n"></div>
+        <div class="wall s"></div>
+        <div class="wall w"></div>
+        <div class="wall e"></div>
+        <div class="grid" id="grid"></div>
+        <div class="boxlines" id="boxlines" aria-hidden="true">
+          <i class="v" style="left:calc((100% - 24px) / 3 + 9.5px)"></i>
+          <i class="v" style="left:calc((100% - 24px) * 2 / 3 + 18.5px)"></i>
+          <i class="h" style="top:calc((100% - 24px) / 3 + 9.5px)"></i>
+          <i class="h" style="top:calc((100% - 24px) * 2 / 3 + 18.5px)"></i>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button class="tool" id="btnNotes"><em>✎</em>메모</button>
+    <button class="tool" id="btnUndo"><em>↶</em>실행취소</button>
+    <button class="tool" id="btnErase"><em>⌫</em>지우기</button>
+    <button class="tool" id="btnHint"><em>✦</em>힌트</button>
+  </div>
+
+  <div class="numpad" id="numpad"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="fx"></canvas>
+
+<div class="win" id="win" aria-hidden="true">
+  <div class="win-card">
+    <div class="win-badge">🎉</div>
+    <h2>완성!</h2>
+    <p class="sub" id="winSub">보통 · 00:00</p>
+    <div class="win-grid">
+      <div><span>시간</span><b id="winTime">00:00</b></div>
+      <div><span>실수</span><b id="winMiss">0</b></div>
+      <div><span>힌트</span><b id="winHint">0</b></div>
+    </div>
+    <p class="winbest" id="winBest"></p>
+    <div class="win-actions">
+      <button class="btn" id="btnWinNew">새 게임</button>
+      <button class="btn ghost" id="btnWinClose">보드 보기</button>
+    </div>
+  </div>
+</div>
+
+<noscript><p style="padding:20px;color:#fff">스도쿠 3D를 사용하려면 자바스크립트를 켜 주세요.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ════════════════════════════════════════════
+     1. 스도쿠 엔진 (생성 · 유일해 검증)
+     ════════════════════════════════════════════ */
+  const idx9 = i => (i / 9) | 0;
+  const boxOf = i => Math.floor(idx9(i) / 3) * 3 + Math.floor((i % 9) / 3);
+  const rnd = n => Math.floor(Math.random() * n);
+  // 암호학적 난수 우선 사용 (환경에 따라 Math.random 시퀸스가 반복되는 것을 방지)
+  const rndSafe = (() => {
+    let pool = null, pi = 0;
+    try { pool = new Uint32Array(64); crypto.getRandomValues(pool); } catch (e) { pool = null; }
+    return n => {
+      if (!pool) return Math.floor(Math.random() * n);
+      if (pi >= pool.length) { try { crypto.getRandomValues(pool); pi = 0; } catch (e) { return Math.floor(Math.random() * n); } }
+      return pool[pi++] % n;
+    };
+  })();
+  const shuffle = a => {
+    for (let i = a.length - 1; i > 0; i--) { const j = rndSafe(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  };
+
+  function genSolution() {
+    const g = new Uint8Array(81);
+    const rm = new Int32Array(9), cm = new Int32Array(9), bm = new Int32Array(9);
+    function rec() {
+      let best = -1, bestMask = 0, bestCnt = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const r = idx9(i), c = i % 9, b = boxOf(i);
+        const avail = (~(rm[r] | cm[c] | bm[b])) & 0x1ff;
+        let cnt = 0, t = avail;
+        while (t) { t &= t - 1; cnt++; }
+        if (cnt < bestCnt) { bestCnt = cnt; best = i; bestMask = avail; if (cnt <= 1) break; }
+      }
+      if (best < 0) return true;
+      const r = idx9(best), c = best % 9, b = boxOf(best);
+      const cands = [];
+      for (let v = 1; v <= 9; v++) if ((bestMask >> (v - 1)) & 1) cands.push(v);
+      shuffle(cands);
+      for (const v of cands) {
+        const bit = 1 << (v - 1);
+        g[best] = v; rm[r] |= bit; cm[c] |= bit; bm[b] |= bit;
+        if (rec()) return true;
+        g[best] = 0; rm[r] &= ~bit; cm[c] &= ~bit; bm[b] &= ~bit;
+      }
+      return false;
+    }
+    rec();
+    return g;
+  }
+
+  function countSolutions(grid, limit) {
+    const g = Uint8Array.from(grid);
+    const rm = new Int32Array(9), cm = new Int32Array(9), bm = new Int32Array(9);
+    for (let i = 0; i < 81; i++) {
+      const v = g[i];
+      if (!v) continue;
+      const r = idx9(i), c = i % 9, b = boxOf(i), bit = 1 << (v - 1);
+      if ((rm[r] & bit) || (cm[c] & bit) || (bm[b] & bit)) return 0;
+      rm[r] |= bit; cm[c] |= bit; bm[b] |= bit;
+    }
+    let count = 0;
+    const cand = new Int32Array(81);
+    function rec() {
+      let best = -1, bestMask = 0, bestCnt = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const r = idx9(i), c = i % 9, b = boxOf(i);
+        const avail = (~(rm[r] | cm[c] | bm[b])) & 0x1ff;
+        let cnt = 0, t = avail;
+        while (t) { t &= t - 1; cnt++; }
+        if (cnt < bestCnt) { bestCnt = cnt; best = i; bestMask = avail; if (cnt <= 1) break; }
+      }
+      if (best < 0) { count++; return count >= limit; }
+      if (bestCnt === 0) return false;
+      const r = idx9(best), c = best % 9, b = boxOf(best);
+      for (let v = 1; v <= 9; v++) {
+        if (!((bestMask >> (v - 1)) & 1)) continue;
+        const bit = 1 << (v - 1);
+        g[best] = v; rm[r] |= bit; cm[c] |= bit; bm[b] |= bit;
+        const stop = rec();
+        g[best] = 0; rm[r] &= ~bit; cm[c] &= ~bit; bm[b] &= ~bit;
+        if (stop) return true;
+      }
+      return false;
+    }
+    rec();
+    return count;
+  }
+
+  const TARGET = { easy: 45, medium: 36, hard: 30 };
+
+  function makePuzzle(diff) {
+    const solution = genSolution();
+    const puzzle = Uint8Array.from(solution);
+    const target = TARGET[diff] || 45;
+    let clues = 81;
+    const order = [];
+    for (let i = 0; i < 81; i++) order.push(i);
+    shuffle(order);
+    for (let pass = 0; pass < 3 && clues > target; pass++) {
+      for (let k = 0; k < order.length && clues > target; k++) {
+        const i = order[k];
+        if (!puzzle[i]) continue;
+        const v = puzzle[i];
+        puzzle[i] = 0;
+        if (countSolutions(puzzle, 2) !== 1) puzzle[i] = v;
+        else clues--;
+      }
+    }
+    return { puzzle, solution };
+  }
+
+  /* ════════════════════════════════════════════
+     2. 상태
+     ════════════════════════════════════════════ */
+  const DIFF_LABEL = { easy: '쉬움', medium: '보통', hard: '어려움' };
+  const SAVE_KEY = 'sudoku3d.save.v1';
+  const BEST_KEY = 'sudoku3d.best.v1';
+
+  const S = {
+    diff: 'easy',
+    puzzle: new Uint8Array(81),
+    solution: new Uint8Array(81),
+    values: new Uint8Array(81),
+    notes: new Uint16Array(81),
+    hints: new Set(),
+    sel: -1,
+    noteMode: false,
+    autoCheck: true,
+    mistakes: 0,
+    hintsUsed: 0,
+    elapsed: 0,
+    runStart: 0,
+    running: false,
+    started: false,
+    solved: false,
+    history: []
+  };
+
+  const view = { tilt: 36, spin: -7, zoom: 1 };
+  let dragged = false;
+  const TILT_MAX = 76;
+  const ISO = { tilt: 36, spin: -7, zoom: 1 };
+  const PERSP = 1080;
+
+  const $ = id => document.getElementById(id);
+    const gridEl = $('grid'), worldEl = $('world'), stageEl = $('stage'), boardEl = $('board'), stageViewEl = $('stageview');
+  const cells = [];
+  const noteEls = [];
+
+  /* ════════════════════════════════════════════
+     3. 렌더링
+     ════════════════════════════════════════════ */
+  const BITS = [];
+  for (let v = 1; v <= 9; v++) BITS[v] = 1 << (v - 1);
+
+  function buildGrid() {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < 81; i++) {
+      const d = document.createElement('div');
+      d.className = 'cell';
+      d.dataset.i = i;
+      const val = document.createElement('span');
+      val.className = 'val';
+      const notes = document.createElement('span');
+      notes.className = 'notes';
+      const ns = [];
+      for (let v = 1; v <= 9; v++) { const s = document.createElement('i'); s.textContent = String(v); notes.appendChild(s); ns.push(s); }
+      d.appendChild(val); d.appendChild(notes);
+      frag.appendChild(d);
+      cells.push(d); noteEls.push(ns);
+    }
+    gridEl.appendChild(frag);
+  }
+
+  function buildNumpad() {
+    const pad = $('numpad');
+    const frag = document.createDocumentFragment();
+    for (let v = 1; v <= 9; v++) {
+      const b = document.createElement('button');
+      b.className = 'key';
+      b.dataset.v = v;
+      b.setAttribute('aria-label', v + ' 입력');
+      b.innerHTML = v + '<span class="rest"></span>';
+      frag.appendChild(b);
+    }
+    pad.appendChild(frag);
+  }
+
+  const countOf = v => {
+    let n = 0;
+    for (let i = 0; i < 81; i++) if (S.values[i] === v && S.solution[i] === v) n++;
+    return n;
+  };
+
+  function paint() {
+    const sel = S.sel;
+    const selV = sel >= 0 ? S.values[sel] : 0;
+    const selR = sel >= 0 ? idx9(sel) : -1;
+    const selC = sel >= 0 ? sel % 9 : -1;
+    const selB = sel >= 0 ? boxOf(sel) : -1;
+
+    for (let i = 0; i < 81; i++) {
+      const el = cells[i];
+      const v = S.values[i];
+      const given = S.puzzle[i] !== 0;
+      let cls = 'cell';
+      if (given) cls += ' given';
+      else if (S.hints.has(i)) cls += ' hintc';
+      if (sel >= 0) {
+        if (i === sel) cls += ' sel';
+        else if (idx9(i) === selR || i % 9 === selC || boxOf(i) === selB) cls += ' hl';
+        if (selV && v === selV && i !== sel) cls += ' same';
+      }
+      if (!given && v && v !== S.solution[i] && S.autoCheck) cls += ' wrong';
+      el.className = cls;
+
+      const valEl = el.firstChild;
+      valEl.textContent = v ? String(v) : '';
+      const nset = S.notes[i];
+      const ns = noteEls[i];
+      let any = false;
+      for (let n = 1; n <= 9; n++) {
+        const on = !v && (nset & BITS[n]) !== 0;
+        ns[n - 1].className = on ? 'on' : '';
+        if (on) any = true;
+      }
+      if (any) el.classList.add('has-notes');
+    }
+    updateHUD();
+  }
+
+  function updateHUD() {
+    $('timer').textContent = fmt(elapsedNow());
+    $('mistakes').textContent = String(S.mistakes);
+    $('hintCount').textContent = String(S.hintsUsed);
+    $('btnCheck').classList.toggle('on', S.autoCheck);
+    $('btnCheck').setAttribute('aria-pressed', String(S.autoCheck));
+    $('btnNotes').classList.toggle('on', S.noteMode);
+
+    const keys = $('numpad').children;
+    for (let i = 0; i < keys.length; i++) {
+      const v = i + 1;
+      const left = 9 - countOf(v);
+      keys[i].classList.toggle('done', left <= 0);
+      keys[i].lastChild.textContent = left > 0 && left < 9 ? String(left) : '';
+      const selV = S.sel >= 0 ? S.values[S.sel] : 0;
+      keys[i].classList.toggle('hi', selV === v);
+    }
+  }
+
+  function fmt(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function subtitle() {
+    const best = bestTimes()[S.diff];
+    $('subtitle').textContent = DIFF_LABEL[S.diff] + ' · ' + (best ? '최고 ' + fmt(best) : '3D로 즐기는 스도쿠');
+  }
+
+  /* ════════════════════════════════════════════
+     4. 타이머
+     ════════════════════════════════════════════ */
+  let ticker = null;
+
+  function elapsedNow() {
+    return S.elapsed + (S.running ? (Date.now() - S.runStart) / 1000 : 0);
+  }
+  function startTimer() {
+    if (S.solved || S.running) return;
+    S.started = true;
+    S.running = true;
+    S.runStart = Date.now();
+    if (!ticker) ticker = setInterval(() => { $('timer').textContent = fmt(elapsedNow()); }, 500);
+  }
+  function pauseTimer() {
+    if (!S.running) return;
+    S.elapsed = elapsedNow();
+    S.running = false;
+  }
+
+  /* ════════════════════════════════════════════
+     5. 게임 진행
+     ════════════════════════════════════════════ */
+  function newGame(diff, quiet) {
+    const p = makePuzzle(diff);
+    S.diff = diff;
+    S.puzzle = p.puzzle;
+    S.solution = p.solution;
+    S.values = Uint8Array.from(p.puzzle);
+    S.notes = new Uint16Array(81);
+    S.hints = new Set();
+    S.sel = -1;
+    S.mistakes = 0;
+    S.hintsUsed = 0;
+    S.elapsed = 0;
+    S.running = false;
+    S.runStart = 0;
+    S.started = false;
+    S.solved = false;
+    S.history = [];
+    paint();
+    subtitle();
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.d === diff));
+    hideWin();
+    save();
+    if (!quiet) toast(DIFF_LABEL[diff] + ' 난이도로 새 게임');
+  }
+
+  function pushHistory(entry) {
+    S.history.push(entry);
+    if (S.history.length > 300) S.history.shift();
+  }
+
+  function selectCell(i) {
+    if (i < 0 || i > 80) return;
+    S.sel = S.sel === i ? -1 : i;
+    paint();
+    if (navigator.vibrate) { try { navigator.vibrate(6); } catch (e) {} }
+  }
+
+  function inputNumber(v) {
+    const i = S.sel;
+    if (i < 0) { toast('먼저 칸을 선택하세요'); return; }
+    if (S.puzzle[i]) { shake(i); toast('처음 주어진 숫자예요'); return; }
+    if (S.solved) return;
+
+    if (S.noteMode) {
+      if (S.values[i]) { toast('이미 숫자가 있어요'); return; }
+      pushHistory({ i, v: S.values[i], n: S.notes[i] });
+      S.notes[i] ^= BITS[v];
+      startTimer();
+      paint(); save();
+      return;
+    }
+
+    if (S.values[i] === v) { clearCell(i); return; }
+    pushHistory({ i, v: S.values[i], n: S.notes[i] });
+    S.values[i] = v;
+    S.notes[i] = 0;
+    if (v !== S.solution[i]) {
+      S.mistakes++;
+      if (navigator.vibrate) { try { navigator.vibrate([0, 18, 30, 12]); } catch (e) {} }
+    }
+    startTimer();
+    paint(); save();
+    checkWin();
+  }
+
+  function clearCell(i) {
+    if (i < 0) return;
+    if (S.puzzle[i]) { shake(i); return; }
+    if (!S.values[i] && !S.notes[i]) return;
+    pushHistory({ i, v: S.values[i], n: S.notes[i] });
+    S.values[i] = 0;
+    S.notes[i] = 0;
+    paint(); save();
+  }
+
+  function undo() {
+    const h = S.history.pop();
+    if (!h) { toast('되돌릴 동작이 없어요'); return; }
+    S.values[h.i] = h.v;
+    S.notes[h.i] = h.n;
+    S.sel = h.i;
+    paint(); save();
+  }
+
+  function hint() {
+    if (S.solved) return;
+    let target = -1;
+    if (S.sel >= 0 && !S.puzzle[S.sel] && S.values[S.sel] !== S.solution[S.sel]) target = S.sel;
+    if (target < 0) {
+      const empties = [];
+      for (let i = 0; i < 81; i++) if (S.values[i] !== S.solution[i]) empties.push(i);
+      if (!empties.length) return;
+      target = empties[rnd(empties.length)];
+    }
+    pushHistory({ i: target, v: S.values[target], n: S.notes[target] });
+    S.values[target] = S.solution[target];
+    S.notes[target] = 0;
+    S.hints.add(target);
+    S.hintsUsed++;
+    S.sel = target;
+    startTimer();
+    paint(); save();
+    toast('힌트: ' + S.solution[target]);
+    checkWin();
+  }
+
+  function checkWin() {
+    for (let i = 0; i < 81; i++) if (S.values[i] !== S.solution[i]) return;
+    S.solved = true;
+    pauseTimer();
+    const t = Math.round(S.elapsed);
+    const best = bestTimes();
+    const isBest = !best[S.diff] || t < best[S.diff];
+    if (isBest) { best[S.diff] = t; try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {} }
+    save();
+    setTimeout(() => {
+      hideToast();
+      $('winSub').textContent = DIFF_LABEL[S.diff] + ' · ' + fmt(t);
+      $('winTime').textContent = fmt(t);
+      $('winMiss').textContent = String(S.mistakes);
+      $('winHint').textContent = String(S.hintsUsed);
+      $('winBest').textContent = isBest ? '★ 최고 기록 갱신!' : ('최고 기록 ' + fmt(best[S.diff]));
+      $('win').classList.add('show');
+      $('win').setAttribute('aria-hidden', 'false');
+      subtitle();
+      ripple();
+      confetti();
+    }, 260);
+  }
+
+  function hideWin() {
+    $('win').classList.remove('show');
+    $('win').setAttribute('aria-hidden', 'true');
+    $('fx').style.display = 'none';
+  }
+
+  function shake(i) {
+    const el = cells[i];
+    el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 320);
+  }
+
+  let toastTimer = null;
+  function hideToast() {
+    clearTimeout(toastTimer);
+    $('toast').classList.remove('show');
+  }
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  /* ════════════════════════════════════════════
+     6. 3D 뷰 조작
+     ════════════════════════════════════════════ */
+  function applyView(animate) {
+    const bw = boardEl.offsetWidth || 340;
+    const bh = boardEl.offsetHeight || 340;
+    const sw = Math.max(140, stageViewEl.clientWidth - 12);
+    const sh = Math.max(140, stageViewEl.clientHeight - 16);
+    // 화면에 실제로 그려질 사각형을 계산해 넘치지 않는 최대 배율을 찾는다
+    const tiltR = view.tilt * Math.PI / 180;
+    const spinR = view.spin * Math.PI / 180;
+    const ct = Math.cos(tiltR), st = Math.sin(tiltR);
+    const cz = Math.cos(spinR), sz = Math.sin(spinR);
+    function extent(k) {
+      let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+      for (let sx = -1; sx <= 1; sx += 2) {
+        for (let sy = -1; sy <= 1; sy += 2) {
+          const x = (sx * bw / 2) * k, y = (sy * bh / 2) * k;
+          const x1 = x * cz - y * sz, y1 = x * sz + y * cz;
+          const y2 = y1 * ct, z2 = y1 * st;
+          const f = PERSP / (PERSP - z2);
+          const px = x1 * f, py = y2 * f;
+          if (px < minX) minX = px; if (px > maxX) maxX = px;
+          if (py < minY) minY = py; if (py > maxY) maxY = py;
+        }
+      }
+      return { w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+    }
+    let k = 1;
+    for (let it = 0; it < 8; it++) {
+      const e = extent(k);
+      const room = Math.min(sw / Math.max(1, e.w), sh / Math.max(1, e.h));
+      k *= room;
+      if (Math.abs(room - 1) < 0.002) break;
+    }
+    const e2 = extent(k);
+    const s = (view.zoom * k).toFixed(4);
+    const ox = (-e2.cx * view.zoom).toFixed(1);
+    const oy = (-e2.cy * view.zoom).toFixed(1);
+    worldEl.classList.toggle('dragging', animate === false);
+    worldEl.style.transform =
+      'translate(' + ox + 'px,' + oy + 'px) rotateX(' + view.tilt.toFixed(2) + 'deg) rotateZ(' + view.spin.toFixed(2) + 'deg) scale(' + s + ')';
+  }
+
+  function setView(tilt, spin, zoom, animate) {
+    view.tilt = Math.max(0, Math.min(TILT_MAX, tilt));
+    view.spin = spin;
+    view.zoom = Math.max(0.7, Math.min(1.45, zoom));
+    applyView(animate !== false);
+    $('btnIso').classList.toggle('active', view.tilt > 20);
+    $('btnFront').classList.toggle('active', view.tilt <= 20);
+  }
+
+  function bindGestures() {
+    const ptrs = new Map();
+    let drag = null, pinch = null;
+
+    stageEl.addEventListener('pointerdown', e => {
+      if (e.target.closest('.viewbar')) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 1) {
+        drag = { x0: e.clientX, y0: e.clientY, t0: performance.now(), tilt0: view.tilt, spin0: view.spin, moved: 0, id: e.pointerId };
+        pinch = null;
+      } else if (ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        pinch = { d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, z0: view.zoom };
+        drag = null;
+      }
+      try { stageEl.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    stageEl.addEventListener('pointermove', e => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && ptrs.size === 2) {
+        const p = [...ptrs.values()];
+        const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        setView(view.tilt, view.spin, pinch.z0 * (d / pinch.d0), false);
+        e.preventDefault();
+        return;
+      }
+      if (!drag) return;
+      const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+      drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+      if (drag.moved > 6) {
+        if (!dragged) { dragged = true; $('draghint').classList.add('gone'); }
+        setView(drag.tilt0 - dy * 0.34, drag.spin0 + dx * 0.26, view.zoom, false);
+        e.preventDefault();
+      }
+    });
+
+    function end(e) {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.delete(e.pointerId);
+      if (ptrs.size < 2) pinch = null;
+      if (drag && drag.id === e.pointerId) {
+        if (drag.moved < 10) {
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const cell = el && el.closest ? el.closest('.cell') : null;
+          if (cell && gridEl.contains(cell)) selectCell(Number(cell.dataset.i));
+        }
+        drag = null;
+        applyView(true);
+      }
+      if (ptrs.size === 0) applyView(true);
+    }
+    stageEl.addEventListener('pointerup', end);
+    stageEl.addEventListener('pointercancel', end);
+
+    stageEl.addEventListener('wheel', e => {
+      e.preventDefault();
+      setView(view.tilt, view.spin, view.zoom * (e.deltaY < 0 ? 1.08 : 0.93), false);
+    }, { passive: false });
+  }
+
+  /* ════════════════════════════════════════════
+     7. 축하 효과
+     ════════════════════════════════════════════ */
+  function ripple() {
+    for (let i = 0; i < 81; i++) {
+      const d = (idx9(i) + (i % 9)) * 26;
+      setTimeout(() => {
+        cells[i].classList.add('winwave');
+        setTimeout(() => cells[i].classList.remove('winwave'), 460);
+      }, d);
+    }
+  }
+
+  const fx = $('fx');
+  const ctx = fx.getContext('2d');
+  let parts = [], fxRaf = 0;
+
+  function confetti() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    fx.width = Math.floor(innerWidth * dpr);
+    fx.height = Math.floor(innerHeight * dpr);
+    fx.style.width = innerWidth + 'px';
+    fx.style.height = innerHeight + 'px';
+    fx.style.display = 'block';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const colors = ['#3fe1ff', '#8b6bff', '#ffcf6b', '#5cf2c0', '#ff7aa2', '#ffffff'];
+    parts = [];
+    for (let i = 0; i < 105; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 3 + Math.random() * 8;
+      parts.push({
+        x: innerWidth / 2 + (Math.random() - .5) * 90,
+        y: innerHeight * 0.34 + (Math.random() - .5) * 40,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3,
+        w: 3 + Math.random() * 5, h: 5 + Math.random() * 7,
+        rot: Math.random() * 6.28, vr: (Math.random() - .5) * .3,
+        c: colors[(Math.random() * colors.length) | 0], life: 1
+      });
+    }
+    cancelAnimationFrame(fxRaf);
+    const t0 = performance.now();
+    function frame(now) {
+      const dt = Math.min(32, now - t0);
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for (const p of parts) {
+        p.vy += 0.16; p.vx *= 0.995; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        p.life = Math.max(0, 1 - (now - t0) / 3200);
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (now - t0 < 3400) fxRaf = requestAnimationFrame(frame);
+      else { ctx.clearRect(0, 0, innerWidth, innerHeight); fx.style.display = 'none'; }
+    }
+    fxRaf = requestAnimationFrame(frame);
+  }
+
+  /* ════════════════════════════════════════════
+     8. 저장 / 복원
+     ════════════════════════════════════════════ */
+  function bestTimes() {
+    try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+
+  function save() {
+    try {
+      const data = {
+        v: 1, diff: S.diff,
+        puzzle: Array.from(S.puzzle), solution: Array.from(S.solution),
+        values: Array.from(S.values), notes: Array.from(S.notes),
+        hints: [...S.hints],
+        sel: S.sel, noteMode: S.noteMode, autoCheck: S.autoCheck,
+        mistakes: S.mistakes, hintsUsed: S.hintsUsed,
+        elapsed: Math.round(elapsedNow()), started: S.started, solved: S.solved
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function load() {
+    let d;
+    try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { d = null; }
+    if (!d || !d.puzzle || d.puzzle.length !== 81 || !d.solution || d.solution.length !== 81) return false;
+    S.diff = DIFF_LABEL[d.diff] ? d.diff : 'easy';
+    S.puzzle = Uint8Array.from(d.puzzle);
+    S.solution = Uint8Array.from(d.solution);
+    S.values = Uint8Array.from(d.values && d.values.length === 81 ? d.values : d.puzzle);
+    S.notes = new Uint16Array(81);
+    if (Array.isArray(d.notes)) for (let i = 0; i < 81; i++) S.notes[i] = d.notes[i] | 0;
+    S.hints = new Set(Array.isArray(d.hints) ? d.hints : []);
+    S.sel = typeof d.sel === 'number' ? d.sel : -1;
+    S.noteMode = !!d.noteMode;
+    S.autoCheck = d.autoCheck !== false;
+    S.mistakes = d.mistakes | 0;
+    S.hintsUsed = d.hintsUsed | 0;
+    S.elapsed = d.elapsed | 0;
+    S.started = !!d.started;
+    S.solved = !!d.solved;
+    S.running = false;
+    S.runStart = 0;
+    S.history = [];
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.d === S.diff));
+    paint(); subtitle();
+    if (S.started && !S.solved) startTimer();
+    return true;
+  }
+
+  /* ════════════════════════════════════════════
+     9. 이벤트 연결
+     ════════════════════════════════════════════ */
+  function bindUI() {
+    $('numpad').addEventListener('click', e => {
+      const b = e.target.closest('.key');
+      if (b) inputNumber(Number(b.dataset.v));
+    });
+    $('btnNotes').addEventListener('click', () => {
+      S.noteMode = !S.noteMode;
+      paint(); save();
+      toast(S.noteMode ? '메모 모드 켜짐' : '메모 모드 꺼짐');
+    });
+    $('btnUndo').addEventListener('click', undo);
+    $('btnErase').addEventListener('click', () => clearCell(S.sel));
+    $('btnHint').addEventListener('click', hint);
+    $('btnCheck').addEventListener('click', () => {
+      S.autoCheck = !S.autoCheck;
+      paint(); save();
+      toast(S.autoCheck ? '오답 자동 체크 켜짐' : '오답 자동 체크 꺼짐');
+    });
+    $('btnNew').addEventListener('click', () => newGame(S.diff));
+    $('chips').addEventListener('click', e => {
+      const c = e.target.closest('.chip');
+      if (c && c.dataset.d !== S.diff) newGame(c.dataset.d);
+      else if (c) newGame(c.dataset.d);
+    });
+    $('btnFront').addEventListener('click', () => setView(0, 0, 1));
+    $('btnIso').addEventListener('click', () => setView(ISO.tilt, ISO.spin, ISO.zoom));
+    $('btnZoomIn').addEventListener('click', () => setView(view.tilt, view.spin, view.zoom * 1.12));
+    $('btnZoomOut').addEventListener('click', () => setView(view.tilt, view.spin, view.zoom / 1.12));
+    $('btnWinNew').addEventListener('click', () => newGame(S.diff));
+    $('btnWinClose').addEventListener('click', hideWin);
+
+    document.addEventListener('keydown', e => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key >= '1' && e.key <= '9') { inputNumber(Number(e.key)); e.preventDefault(); return; }
+      const k = e.key;
+      if (k === 'Backspace' || k === 'Delete') { clearCell(S.sel); e.preventDefault(); }
+      else if (k === 'z' || k === 'Z') undo();
+      else if (k === 'n' || k === 'N') { S.noteMode = !S.noteMode; paint(); save(); }
+      else if (k === 'h' || k === 'H') hint();
+      else if (k.startsWith('Arrow')) {
+        e.preventDefault();
+        if (S.sel < 0) { S.sel = 40; }
+        else {
+          const r = idx9(S.sel), c = S.sel % 9;
+          if (k === 'ArrowUp') S.sel = ((r + 8) % 9) * 9 + c;
+          if (k === 'ArrowDown') S.sel = ((r + 1) % 9) * 9 + c;
+          if (k === 'ArrowLeft') S.sel = r * 9 + ((c + 8) % 9);
+          if (k === 'ArrowRight') S.sel = r * 9 + ((c + 1) % 9);
+        }
+        paint();
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { pauseTimer(); save(); }
+      else if (S.started && !S.solved) { startTimer(); save(); }
+    });
+    window.addEventListener('resize', () => applyView(false));
+  }
+
+  /* ════════════════════════════════════════════
+     10. 시작
+     ════════════════════════════════════════════ */
+  function boot() {
+    buildGrid();
+    buildNumpad();
+    bindUI();
+    bindGestures();
+    setView(view.tilt, view.spin, view.zoom, false);
+    if (!load()) newGame('easy', true);
+    subtitle();
+    setTimeout(() => applyView(true), 30);
+    setTimeout(() => { if (!dragged) $('draghint').classList.add('gone'); }, 9000);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
